@@ -12,6 +12,9 @@ type Env = {
     get(key: string): Promise<string | null>;
     put(key: string, value: string): Promise<void>;
   };
+  ASSETS: {
+    fetch(req: Request | string): Promise<Response>;
+  };
 };
 
 type OrderItem = { id: string; name: string; price: number; qty: number };
@@ -91,16 +94,6 @@ async function handle(req: Request, env: Env): Promise<Response> {
 
     if (req.method === "OPTIONS") return json({ ok: true });
 
-    // главная — чтобы при открытии URL воркера не было "not found"
-    if (p === "/") {
-      return json({
-        service: "SmolyShop API",
-        status: "online",
-        hint: "Это бэкенд. Фронт должен ходить на /api/*",
-        endpoints: ["/api/health", "/api/orders", "/api/admin/stats", "/api/admin/orders/:id/status"],
-      });
-    }
-
     // health + проверка доступности KV
     if (p === "/api/health") {
       let db = true;
@@ -174,6 +167,14 @@ async function handle(req: Request, env: Env): Promise<Response> {
         pendingCount: pend.length,
         total: all.length,
       });
+    }
+
+    // всё остальное — сам мини-апп (статика из dist)
+    if (req.method === "GET") {
+      const asset = await env.ASSETS.fetch(req);
+      if (asset.status !== 404) return asset;
+      // SPA-fallback: любой неизвестный путь открывает приложение
+      return env.ASSETS.fetch(new Request(new URL("/", req.url)));
     }
 
     return json({ error: "not found" }, 404);
