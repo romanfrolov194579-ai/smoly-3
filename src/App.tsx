@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Store, ShoppingCart, ReceiptText, ShieldAlert, Cpu, Wifi, WifiOff } from "lucide-react";
 import { cn } from "./utils/cn";
 import { StoreProvider, useStore } from "./lib/store";
+import { getApiNote } from "./lib/api";
 import { devUsers } from "./lib/telegram";
 import Shop from "./components/Shop";
 import Cart from "./components/Cart";
@@ -37,6 +38,7 @@ function Logo() {
 function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user, inTelegram, isAdmin, apiMode, devUser, setDevUser, toast } = useStore();
   const initials = (user.firstName[0] ?? "U").toUpperCase();
+  const apiNote = getApiNote();
 
   return (
     <Sheet open={open} onClose={onClose}>
@@ -83,6 +85,13 @@ function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => void })
           </div>
         </div>
       </div>
+
+      {apiNote && (
+        <div className="mt-4 flex items-start gap-2 rounded-xl bg-warn-400/10 px-3.5 py-3 text-xs leading-relaxed text-warn-400 ring-1 ring-warn-400/25">
+          <WifiOff className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          {apiNote}
+        </div>
+      )}
 
       {!inTelegram && (
         <div className="mt-4 rounded-xl bg-ink-800 p-3.5 ring-1 ring-white/6">
