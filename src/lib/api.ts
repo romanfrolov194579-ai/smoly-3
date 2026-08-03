@@ -8,11 +8,15 @@ import { genOrderId } from "./data";
  * повторяющая контракт API — чтобы всё работало до деплоя.
  */
 
-const API_BASE = ((import.meta as any).env?.VITE_API_URL as string | undefined) ?? "";
+// Адрес воркера по умолчанию. Можно переопределить через VITE_API_URL при сборке.
+const API_BASE =
+  ((import.meta as any).env?.VITE_API_URL as string | undefined) ||
+  "https://smoly-3.romanfrolov194579.workers.dev";
 
 export type ApiMode = "worker" | "mock" | "checking";
 
 let mode: ApiMode = "checking";
+let note = "";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -20,18 +24,28 @@ export async function probeApi(): Promise<ApiMode> {
   if (mode !== "checking") return mode;
   try {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 1500);
+    const t = setTimeout(() => ctrl.abort(), 2500);
     const res = await fetch(`${API_BASE}/api/health`, { signal: ctrl.signal });
     clearTimeout(t);
     const ct = res.headers.get("content-type") ?? "";
-    mode = res.ok && ct.includes("application/json") ? "worker" : "mock";
+    if (res.ok && ct.includes("application/json")) {
+      const body = (await res.json()) as { db?: boolean; dbError?: string };
+      mode = "worker";
+      if (body.db === false) {
+        note = "Worker онлайн, но KV не подключён — проверь wrangler.json";
+      }
+    } else {
+      mode = "mock";
+    }
   } catch {
     mode = "mock";
+    note = "Worker недоступен — включён локальный режим";
   }
   return mode;
 }
 
 export const getApiMode = () => mode;
+export const getApiNote = () => note;
 
 /* ---------------- in-memory заглушка (имитация KV) ---------------- */
 
