@@ -66,13 +66,53 @@ const isAdmin = (name: string | null) =>
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
+    try {
+      return await handle(req, env);
+    } catch (e) {
+      const msg = String(e);
+      const kvBroken = /namespace|kv/i.test(msg);
+      return json(
+        {
+          error: "worker_error",
+          detail: msg,
+          hint: kvBroken
+            ? "KV не подключён: создай namespace (npx wrangler kv namespace create DB) и вставь id в wrangler.json"
+            : undefined,
+        },
+        500
+      );
+    }
+  },
+};
+
+async function handle(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     const p = url.pathname;
 
     if (req.method === "OPTIONS") return json({ ok: true });
 
-    // health
-    if (p === "/api/health") return json({ ok: true, service: "smolyshop", ts: Date.now() });
+    // главная — чтобы при открытии URL воркера не было "not found"
+    if (p === "/") {
+      return json({
+        service: "SmolyShop API",
+        status: "online",
+        hint: "Это бэкенд. Фронт должен ходить на /api/*",
+        endpoints: ["/api/health", "/api/orders", "/api/admin/stats", "/api/admin/orders/:id/status"],
+      });
+    }
+
+    // health + проверка доступности KV
+    if (p === "/api/health") {
+      let db = true;
+      let dbError = "";
+      try {
+        await env.DB.get(KEY);
+      } catch (e) {
+        db = false;
+        dbError = String(e);
+      }
+      return json({ ok: true, service: "smolyshop", ts: Date.now(), db, dbError });
+    }
 
     // заказы пользователя (админ получает все)
     if (p === "/api/orders" && req.method === "GET") {
@@ -137,5 +177,4 @@ export default {
     }
 
     return json({ error: "not found" }, 404);
-  },
-};
+}
