@@ -1,0 +1,11 @@
+{
+  "name": "smolyshop-worker",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-01-01",
+  "kv_namespaces": [
+    {
+      "binding": "DB",
+      "id": "ВСТАВЬ_ID_СВОЕГО_KV"
+    }
+  ]
+}
